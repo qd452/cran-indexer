@@ -30,7 +30,7 @@ class PackageHandler:
         if remove_local:
             os.remove(self.full_path)
         desc_dct = DescriptionParser().parse(desc_txt)
-        desc_dct['URL'] = self.url  # also save the url
+        desc_dct['TAR_URL'] = self.url  # also save the url
 
         # In case of the DESCRIPTION FILE missing the package name and version
         # just update those fields by using the information from PACKAGE
@@ -63,7 +63,6 @@ class PackageHandler:
             raise PacakgeHandlerError("Package doesn't exist in local")
         content = ""
         with tarfile.open(self.full_path, "r:gz") as tar:
-            print([x.name for x in tar.getmembers()])
             for member in tar.getmembers():
                 sp = member.name.split('/')
                 # in case of some of the files has multiple DESCRIPTION FILES
@@ -86,4 +85,5 @@ if __name__ == "__main__":
     pkg = PackageHandler('Rd2roxygen', '1.9')
     # pkg.download(p)
     c = pkg.get_description(p, remove_local=False)
-    print(c)
+    from pprint import pprint
+    pprint(c)

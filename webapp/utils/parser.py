@@ -4,9 +4,10 @@ from datetime import datetime
 import re
 
 
-def name_list_parser(name_lst: str):
-    name_lst = re.sub('\[.*?\]', '', name_lst)
-    name_lst = [n.strip() for n in name_lst.split(',')]
+def name_list_parser(name_str: str):
+    name_str = re.sub('and', ',', name_str)
+    name_str = re.sub('\[.*?\]', '', name_str)
+    name_lst = [n.strip() for n in name_str.split(',') if n.strip()]
     rslt = []
     for name in name_lst:
         name_dct = {}
@@ -14,6 +15,7 @@ def name_list_parser(name_lst: str):
         if m and '@' in m[0]:
             name_dct['Email'] = m[0][1:-1]
         name_dct['Name'] = re.sub('\<.*?\>', '', name).strip()
+        name_dct['Name'] = re.sub('\(.*?\)', '', name_dct['Name']).strip()
         rslt.append(name_dct)
     return rslt
 
@@ -29,7 +31,7 @@ class Parser:
     def parse_txt(self, txt: str, fields: dict) -> dict:
         lst = []
         for l in txt.split('\n'):
-            if ':' in l:
+            if ':' in l and l[0] != " ":
                 lst.append([x.strip() for x in l.split(':', 1)])
             else:
                 lst[-1][1] += ' ' + l.strip()
@@ -54,8 +56,24 @@ class DescriptionParser(Parser):
     def __init__(self):
         super(DescriptionParser, self).__init__()
 
+    def _map_ppl_email(self, desc_dct: dict):
+        ppl_email = {}
+        for ppl in desc_dct['Author'] + desc_dct['Maintainer']:
+            name = ppl['Name']
+            first_name, *middle_name, last_name = name.split(' ')
+            # middle_name = middle_name[0] if middle_name else ''
+            email = ppl.get('Email', None)
+            if email:
+                ppl_email[name] = email
+                ppl_email[first_name + ' ' + last_name] = email
+        for ppl in desc_dct['Author'] + desc_dct['Maintainer']:
+            if ppl['Name'] in ppl_email:
+                ppl['Email'] = ppl_email[ppl['Name']]
+
     def parse(self, txt):
-        return self.parse_txt(txt, self._field)
+        desc_dct = self.parse_txt(txt, self._field)
+        self._map_ppl_email(desc_dct)
+        return desc_dct
 
 
 class PackageParser(Parser):
@@ -91,5 +109,11 @@ if __name__ == "__main__":
     # print(len(pkgs))
 
     a = "asdfasdf <asdfa@gags>, asdfs asdfasd <asdfsf>, aa"
+    r = name_list_parser(a)
+    print(r)
+    a = 'Hadley Wickham [aut],\n  Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>)\nMaintainer: Yihui Xie <xie@yihui.name>\n'
+    r = name_list_parser(a)
+    print(r)
+    a = 'a, b and c'
     r = name_list_parser(a)
     print(r)
