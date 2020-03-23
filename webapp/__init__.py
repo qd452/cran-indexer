@@ -1,10 +1,10 @@
 import os
-
 from flask import Flask
 from flask_pymongo import PyMongo
 from flask_redis import FlaskRedis
 from celery import Celery
 from webapp.config import BaseConfig
+from webapp.model import create_mongo_index
 
 mongo = PyMongo()
 cache = FlaskRedis(decode_responses=True)
@@ -21,6 +21,7 @@ def create_app():
     app.config.from_object(app_settings)
 
     mongo.init_app(app)
+    create_mongo_index(mongo)
     cache.init_app(app)
     celery.conf.update(app.config)
     celery.conf.task_routes = ([

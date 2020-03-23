@@ -7,7 +7,16 @@ from webapp.utils.packge_handler import PackageHandler
 from webapp import cache, celery, mongo
 
 
-# celery = create_celery_app(app)
+def is_package_processed_strict(pkg_name, pkg_version):
+    pkg_ver = pkg_name + '_' + pkg_version
+    if cache.sismember('processed', pkg_ver):
+        return True
+    if mongo.db.package.find_one(
+            {"Package": pkg_name, "Version": pkg_version}):
+        # if not in cache but in db, add in cache
+        cache.sadd('processed', pkg_ver)
+        return True
+    return False
 
 
 @celery.task
@@ -15,21 +24,20 @@ def sync_package():
     for pkg in PackageParser().parse_from_url():
         pkg, ver = pkg['Package'], pkg['Version']
         pkg_ver = 'processed:' + pkg + '_' + ver
-        cache.set(pkg_ver, 'false', nx=True)
-        if cache.get(pkg_ver) == 'false':
-            cache.set(pkg_ver, 'pending')
+        if not cache.sismember('processed', pkg_ver):
             process_package.apply_async(args=[pkg, ver])
 
 
-@celery.task
-def process_package(pkg_name, pkg_version):
+@celery.task(bind=True, retry_kwargs={'max_retries': 3})
+def process_package(self, pkg_name, pkg_version):
     try:
+        # to make sure the consumer is idempotent
+        if is_package_processed_strict(pkg_name, pkg_version):
+            return
         pkg_handler = PackageHandler(pkg_name, pkg_version)
         app = current_app._get_current_object()
         desc = pkg_handler.get_description(app.config['TMP_DIR'])
         pkg_id = mongo.db.package.insert_one(desc).inserted_id
-        print(pkg_id)
-        pkg_ver = 'processed:' + pkg_name + '_' + pkg_version
-        cache.set(pkg_ver, 'true')
-    except Exception as e:
-        print(f'{pkg_name}-')
+    except Exception as exc:
+        # retry after 5 mins
+        raise self.retry(exc=exc, countdown=5 * 60)
