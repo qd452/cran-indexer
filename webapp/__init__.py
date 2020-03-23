@@ -3,11 +3,13 @@ import os
 from flask import Flask
 from flask_pymongo import PyMongo
 from flask_redis import FlaskRedis
+from celery import Celery
 from webapp.config import BaseConfig
 
 mongo = PyMongo()
 cache = FlaskRedis(decode_responses=True)
 
+celery = Celery(__name__, broker=BaseConfig.CELERY_BROKER_URL)
 
 
 def create_app():
@@ -20,7 +22,11 @@ def create_app():
 
     mongo.init_app(app)
     cache.init_app(app)
-
+    celery.conf.update(app.config)
+    celery.conf.task_routes = ([
+                                   ('webapp.task.sync_package', {'queue': 'sync_package'}),
+                                   ('webapp.task.process_package', {'queue': 'process_package'})
+                               ],)
 
     tmp_dir = app.config['TMP_DIR']
     if not os.path.exists(tmp_dir):
