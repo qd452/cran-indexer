@@ -1,6 +1,7 @@
 import requests
 import tarfile
 import os
+import logging
 
 try:
     from .parser import DescriptionParser
@@ -8,6 +9,7 @@ except ImportError:
     from parser import DescriptionParser
 
 BASE_URL = "https://cran.r-project.org/src/contrib/"
+logger = logging.getLogger(__name__)
 
 
 class PacakgeHandlerError(Exception):
@@ -22,11 +24,23 @@ class PackageHandler:
         self.local_fn = f'{self.name}_{self.version}.tar.gz'
         self.full_path = None
 
-    def get_description(self, download_path):
+    def get_description(self, download_path, remove_local=True):
         self.download(download_path)
         desc_txt = self.extract_desc()
-        os.remove(self.full_path)
-        return DescriptionParser().parse(desc_txt)
+        if remove_local:
+            os.remove(self.full_path)
+        desc_dct = DescriptionParser().parse(desc_txt)
+        desc_dct['URL'] = self.url  # also save the url
+
+        # In case of the DESCRIPTION FILE missing the package name and version
+        # just update those fields by using the information from PACKAGE
+        if desc_dct.get('Package', None) is None:
+            logger.warning(f'{self.name} has no Package name in DESCRIPTION')
+            desc_dct['Package'] = self.name
+        if desc_dct.get('Version', None) is None:
+            logger.warning(f'{self.version} has no Package version in DESCRIPTION')
+            desc_dct['Version'] = self.version
+        return desc_dct
 
     def download(self, download_path, chunk_size=16 * 1024):
         '''
@@ -49,19 +63,27 @@ class PackageHandler:
             raise PacakgeHandlerError("Package doesn't exist in local")
         content = ""
         with tarfile.open(self.full_path, "r:gz") as tar:
+            print([x.name for x in tar.getmembers()])
             for member in tar.getmembers():
-                if member.name.split('/')[-1] == 'DESCRIPTION':
+                sp = member.name.split('/')
+                # in case of some of the files has multiple DESCRIPTION FILES
+                if len(sp) == 2 and sp[-1] == 'DESCRIPTION':
                     f = tar.extractfile(member)
                     if f is not None:
                         content = f.read()
-        return content.decode()
+        try:
+            content_str = content.decode(encoding='utf-8')
+        except:
+            content_str = content.decode(encoding="ISO-8859-1")
+        return content_str
 
 
 if __name__ == "__main__":
     p = os.path.abspath(os.path.dirname(__file__) + "/output")
-
     pkg = PackageHandler('MBHdesign', '2.1.6')
     pkg = PackageHandler('AnimalHabitatNetwork', '0.1.0')
-    pkg.download(p)
-    c = pkg.get_description(p)
+    'webapp/utils/output/Rd2roxygen_1.9.tar.gz'
+    pkg = PackageHandler('Rd2roxygen', '1.9')
+    # pkg.download(p)
+    c = pkg.get_description(p, remove_local=False)
     print(c)
