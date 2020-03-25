@@ -21,6 +21,15 @@ class DevelopmentConfig(BaseConfig):
     WTF_CSRF_ENABLED = False
 
 
+class ProductionConfig(BaseConfig):
+    """Development configuration."""
+    WTF_CSRF_ENABLED = False
+    REDIS_URL = 'redis://redis:6379/0'
+    MONGO_URI = "mongodb://mongodb:27017/cranIndex"
+    CELERY_BROKER_URL = 'pyamqp://user:bitnami@rabbitmq//'
+
+
+
 class TestingConfig(BaseConfig):
     """Testing configuration."""
     TESTING = True

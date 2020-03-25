@@ -28,7 +28,7 @@ def sync_package():
             process_package.apply_async(args=[pkg, ver])
 
 
-@celery.task(bind=True, retry_kwargs={'max_retries': 3})
+@celery.task(bind=True, retry_kwargs={'max_retries': 2})
 def process_package(self, pkg_name, pkg_version):
     try:
         # to make sure the consumer is idempotent

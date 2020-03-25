@@ -60,12 +60,17 @@ class DescriptionParser(Parser):
         ppl_email = {}
         for ppl in desc_dct['Author'] + desc_dct['Maintainer']:
             name = ppl['Name']
-            first_name, *middle_name, last_name = name.split(' ')
+            first_name = last_name = None
+            try:
+                first_name, *middle_name, last_name = name.split(' ')
+            except:
+                pass
             # middle_name = middle_name[0] if middle_name else ''
             email = ppl.get('Email', None)
             if email:
                 ppl_email[name] = email
-                ppl_email[first_name + ' ' + last_name] = email
+                if first_name and last_name:
+                    ppl_email[first_name + ' ' + last_name] = email
         for ppl in desc_dct['Author'] + desc_dct['Maintainer']:
             if ppl['Name'] in ppl_email:
                 ppl['Email'] = ppl_email[ppl['Name']]

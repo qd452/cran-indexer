@@ -3,13 +3,18 @@ from flask import Flask
 from flask_pymongo import PyMongo
 from flask_redis import FlaskRedis
 from celery import Celery
-from webapp.config import BaseConfig
+from webapp.config import BaseConfig, ProductionConfig
 from webapp.model import create_mongo_index
+import importlib
 
 mongo = PyMongo()
 cache = FlaskRedis(decode_responses=True)
 
-celery = Celery(__name__, broker=BaseConfig.CELERY_BROKER_URL)
+app_settings = os.getenv('APP_SETTINGS')
+m, c = app_settings.rsplit('.', 1)
+broker = getattr(importlib.import_module(m), c).CELERY_BROKER_URL
+
+celery = Celery(__name__, broker=broker)
 
 
 def create_app():
@@ -17,11 +22,9 @@ def create_app():
     app = Flask(__name__)
 
     # set config
-    app_settings = os.getenv('APP_SETTINGS')
     app.config.from_object(app_settings)
 
     mongo.init_app(app)
-    create_mongo_index(mongo)
     cache.init_app(app)
     celery.conf.update(app.config)
     celery.conf.task_routes = ([
