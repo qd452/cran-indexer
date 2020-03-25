@@ -1,0 +1,71 @@
+version: '3.7'
+
+services:
+
+  cranindexer:
+    build: .
+    image: cranindexer
+    container_name: cranindexer
+    networks:
+      - backend
+    ports:
+      - '8080:5000'
+    command: python manage.py run -h 0.0.0.0
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - APP_SETTINGS=webapp.config.ProductionConfig
+    depends_on:
+      - redis
+      - rabbitmq
+      - mongodb
+
+  cranworker:
+    image: cranindexer
+    command: celery worker -A celery_worker.celery -Q sync_package,process_package --loglevel=info
+    networks:
+      - backend
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - APP_SETTINGS=webapp.config.ProductionConfig
+    depends_on:
+      - redis
+      - rabbitmq
+      - mongodb
+      - cranindexer
+
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - backend
+    volumes:
+      - redis-data:/bitnami/redis/data
+
+  mongodb:
+    image: bitnami/mongodb:latest
+    networks:
+      - backend
+    volumes:
+      - mongo-data:/bitnami
+
+  rabbitmq:
+    image: bitnami/rabbitmq:latest
+    networks:
+      - backend
+    volumes:
+      - rabbitmq-data:/bitnami
+
+networks:
+  backend:
+    external: true
+
+volumes:
+  web-data:
+  worker-data:
+  redis-data:
+  mongo-data:
+  rabbitmq-data:
+

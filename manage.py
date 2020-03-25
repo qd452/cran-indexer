@@ -6,9 +6,11 @@ import unittest
 import redis
 from flask.cli import FlaskGroup
 
-from webapp import create_app, celery
+from webapp import create_app, celery, mongo
+from webapp.model import create_mongo_index
 
 app = create_app()
+create_mongo_index(mongo)
 cli = FlaskGroup(create_app=create_app)
 
 
@@ -24,7 +26,5 @@ def test():
 
 if __name__ == '__main__':
     cli()
-#!/usr/bin/env python
+# !/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-

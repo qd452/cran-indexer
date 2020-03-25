@@ -1,18 +1,36 @@
 # cran-indexer
 
 
+## To access the service
+
+http://35.240.177.243:8080/api/v0/
+
 ## Quick Start
 
 
 ### Docker
 
 
+```sh
+docker network create backend
+docker-compose up -d --build
+```
+
+After deploying to GCP, Create a firewall rule to allow traffic to your instance:
+
+
+```sh
+gcloud compute firewall-rules create default-allow-http-8080 \
+    --allow tcp:8080 \
+    --source-ranges 0.0.0.0/0 \
+    --target-tags http-server \
+    --description "Allow port 8080 access to http-server"
+```
+
 ### Native
 
 ```sh
-
 export APP_SETTINGS=webapp.config.DevelopmentConfig
-
 
 # start consumer worker
 celery worker -A celery_worker.celery -Q sync_package,process_package --loglevel=info
